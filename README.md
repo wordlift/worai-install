@@ -9,6 +9,13 @@ Public install scripts for `worai`.
 - Windows PowerShell:
   - `irm https://raw.githubusercontent.com/wordlift/worai-install/main/install-worai.ps1 | iex`
 
+After install:
+- The script automatically persists `pipx`/`worai` PATH entries in your shell profile when needed.
+- For immediate use in the current shell:
+  - zsh: `source ~/.zshrc`
+  - bash: `source ~/.bashrc`
+- Then run: `worai --help`
+
 ## Verify before running
 
 - macOS/Linux:
