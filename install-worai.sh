@@ -110,19 +110,61 @@ ensure_pipx() {
     echo "pipx"
     return
   fi
-  log "Installing pipx..."
-  "$py" -m pip install --user --upgrade pip pipx
-  "$py" -m pipx ensurepath || true
+
+  # Prefer system package managers first (works better with externally-managed Python).
+  case "$(uname -s)" in
+    Darwin)
+      if has_cmd brew; then
+        log "Installing pipx with Homebrew..."
+        brew install pipx
+      fi
+      ;;
+    Linux)
+      if has_cmd apt-get; then
+        run_root apt-get update -y
+        run_root apt-get install -y pipx || true
+      elif has_cmd dnf; then
+        run_root dnf install -y pipx || true
+      elif has_cmd yum; then
+        run_root yum install -y pipx || true
+      elif has_cmd pacman; then
+        run_root pacman -Sy --noconfirm python-pipx || true
+      elif has_cmd zypper; then
+        run_root zypper --non-interactive install pipx || true
+      elif has_cmd apk; then
+        run_root apk add --no-cache pipx || true
+      fi
+      ;;
+  esac
 
   if has_cmd pipx; then
     echo "pipx"
+    return
+  fi
+
+  # Fallback: user install with pip. Some environments require --break-system-packages.
+  log "Installing pipx with pip --user..."
+  "$py" -m ensurepip --upgrade >/dev/null 2>&1 || true
+  if ! "$py" -m pip install --user --upgrade pipx; then
+    log "Retrying pipx install with --break-system-packages..."
+    "$py" -m pip install --user --break-system-packages --upgrade pipx \
+      || fail "Unable to install pipx. Install it manually (e.g. 'brew install pipx') and re-run."
+  fi
+
+  "$py" -m pipx ensurepath || true
+  if [ -x "/opt/homebrew/bin/pipx" ]; then
+    echo "/opt/homebrew/bin/pipx"
+    return
+  fi
+  if [ -x "/usr/local/bin/pipx" ]; then
+    echo "/usr/local/bin/pipx"
     return
   fi
   if [ -x "$HOME/.local/bin/pipx" ]; then
     echo "$HOME/.local/bin/pipx"
     return
   fi
-  fail "pipx was installed but is not on PATH. Open a new shell and run again."
+  fail "pipx install finished but pipx is not on PATH yet. Open a new shell and run again."
 }
 
 install_or_upgrade_worai() {
