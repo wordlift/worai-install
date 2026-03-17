@@ -116,25 +116,25 @@ ensure_pipx() {
     Darwin)
       if has_cmd brew; then
         log "Installing pipx with Homebrew..."
-        if ! brew install pipx; then
+        if ! brew install pipx >&2; then
           log "Homebrew pipx install failed; falling back to pip user install..."
         fi
       fi
       ;;
     Linux)
       if has_cmd apt-get; then
-        run_root apt-get update -y
-        run_root apt-get install -y pipx || true
+        run_root apt-get update -y >&2
+        run_root apt-get install -y pipx >&2 || true
       elif has_cmd dnf; then
-        run_root dnf install -y pipx || true
+        run_root dnf install -y pipx >&2 || true
       elif has_cmd yum; then
-        run_root yum install -y pipx || true
+        run_root yum install -y pipx >&2 || true
       elif has_cmd pacman; then
-        run_root pacman -Sy --noconfirm python-pipx || true
+        run_root pacman -Sy --noconfirm python-pipx >&2 || true
       elif has_cmd zypper; then
-        run_root zypper --non-interactive install pipx || true
+        run_root zypper --non-interactive install pipx >&2 || true
       elif has_cmd apk; then
-        run_root apk add --no-cache pipx || true
+        run_root apk add --no-cache pipx >&2 || true
       fi
       ;;
   esac
@@ -147,13 +147,14 @@ ensure_pipx() {
   # Fallback: user install with pip. Some environments require --break-system-packages.
   log "Installing pipx with pip --user..."
   "$py" -m ensurepip --upgrade >/dev/null 2>&1 || true
-  if ! "$py" -m pip install --user --upgrade pipx; then
+  if ! "$py" -m pip install --user --upgrade pipx >&2; then
     log "Retrying pipx install with --break-system-packages..."
     "$py" -m pip install --user --break-system-packages --upgrade pipx \
+      >&2 \
       || fail "Unable to install pipx. Install it manually (e.g. 'brew install pipx') and re-run."
   fi
 
-  "$py" -m pipx ensurepath || true
+  "$py" -m pipx ensurepath >&2 || true
   local user_base
   user_base="$("$py" -c 'import site; print(site.USER_BASE)' 2>/dev/null || true)"
   if [ -n "$user_base" ] && [ -x "$user_base/bin/pipx" ]; then
@@ -196,7 +197,11 @@ main() {
 
   install_or_upgrade_worai "$pipx_bin"
 
+  local installed_version
+  installed_version="$("$pipx_bin" runpip worai show worai 2>/dev/null | awk '/^Version:/{print $2; exit}')"
+
   log "Done."
+  log "worai ${installed_version:-unknown} successfully installed"
   log "If this is your first pipx install, open a new terminal before running: worai --help"
   if has_cmd worai; then
     log "Installed version: $(worai --version 2>/dev/null || echo 'unknown')"
