@@ -16,6 +16,32 @@ has_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+append_path_line_if_missing() {
+  local rc_file="$1"
+  local line="$2"
+  [ -f "$rc_file" ] || touch "$rc_file"
+  if ! grep -Fqx "$line" "$rc_file" 2>/dev/null; then
+    printf '\n%s\n' "$line" >>"$rc_file"
+  fi
+}
+
+persist_path_for_user() {
+  local paths="$1"
+  [ -n "$paths" ] || return
+  local export_line
+  export_line="export PATH=\"$paths:\$PATH\""
+
+  if [ -n "${ZSH_VERSION:-}" ] || [ "${SHELL:-}" = "/bin/zsh" ]; then
+    append_path_line_if_missing "$HOME/.zshrc" "$export_line"
+    return
+  fi
+  if [ -n "${BASH_VERSION:-}" ] || [ "${SHELL:-}" = "/bin/bash" ]; then
+    append_path_line_if_missing "$HOME/.bashrc" "$export_line"
+    return
+  fi
+  append_path_line_if_missing "$HOME/.profile" "$export_line"
+}
+
 run_root() {
   if [ "${EUID:-$(id -u)}" -eq 0 ]; then
     "$@"
@@ -220,9 +246,15 @@ main() {
   if [ -n "$worai_candidate" ]; then
     local worai_dir
     worai_dir="$(dirname "$worai_candidate")"
+    local persist_paths="$worai_dir"
+    if [ "$worai_dir" != "$HOME/.local/bin" ] && [ -d "$HOME/.local/bin" ]; then
+      persist_paths="$persist_paths:$HOME/.local/bin"
+    fi
+    persist_path_for_user "$persist_paths"
     log "worai is installed at: $worai_candidate"
     log "Current shell PATH does not include: $worai_dir"
-    log "Run now: export PATH=\"$worai_dir:\$PATH\" && hash -r"
+    log "PATH was updated in your shell profile."
+    log "Run now: export PATH=\"$persist_paths:\$PATH\" && hash -r"
     log "Then run: worai --help"
   else
     log "If this is your first pipx install, open a new terminal before running: worai --help"
