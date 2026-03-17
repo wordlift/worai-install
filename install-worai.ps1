@@ -7,9 +7,18 @@ function Write-Info([string]$Message) {
     Write-Host "[worai-install] $Message"
 }
 
-function Test-PythonVersion([string]$PythonCmd) {
+function Invoke-Cmd([string[]]$Cmd, [string[]]$Args) {
+    if ($Cmd.Length -gt 1) {
+        & $Cmd[0] $Cmd[1..($Cmd.Length - 1)] @Args
+    }
+    else {
+        & $Cmd[0] @Args
+    }
+}
+
+function Test-PythonVersion([string[]]$PythonCmd) {
     try {
-        & $PythonCmd -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" | Out-Null
+        Invoke-Cmd -Cmd $PythonCmd -Args @("-c", "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)") | Out-Null
         return $true
     }
     catch {
@@ -18,15 +27,15 @@ function Test-PythonVersion([string]$PythonCmd) {
 }
 
 function Get-PythonCommand() {
-    if (Get-Command python -ErrorAction SilentlyContinue) { return "python" }
-    if (Get-Command py -ErrorAction SilentlyContinue) { return "py -3" }
+    if (Get-Command python -ErrorAction SilentlyContinue) { return @("python") }
+    if (Get-Command py -ErrorAction SilentlyContinue) { return @("py", "-3") }
     return $null
 }
 
 function Ensure-Python() {
     $pythonCmd = Get-PythonCommand
     if ($pythonCmd -and (Test-PythonVersion $pythonCmd)) {
-        Write-Info "Using $pythonCmd ($(& $pythonCmd --version 2>&1))"
+        Write-Info "Using $($pythonCmd -join ' ') ($(Invoke-Cmd -Cmd $pythonCmd -Args @('--version') 2>&1))"
         return $pythonCmd
     }
 
@@ -46,18 +55,18 @@ function Ensure-Python() {
         throw "Python >= 3.10 is required."
     }
 
-    Write-Info "Using $pythonCmd ($(& $pythonCmd --version 2>&1))"
+    Write-Info "Using $($pythonCmd -join ' ') ($(Invoke-Cmd -Cmd $pythonCmd -Args @('--version') 2>&1))"
     return $pythonCmd
 }
 
-function Ensure-Pipx([string]$PythonCmd) {
+function Ensure-Pipx([string[]]$PythonCmd) {
     if (Get-Command pipx -ErrorAction SilentlyContinue) {
         return "pipx"
     }
 
     Write-Info "Installing pipx..."
-    & $PythonCmd -m pip install --user --upgrade pip pipx
-    & $PythonCmd -m pipx ensurepath
+    Invoke-Cmd -Cmd $PythonCmd -Args @("-m", "pip", "install", "--user", "--upgrade", "pip", "pipx")
+    Invoke-Cmd -Cmd $PythonCmd -Args @("-m", "pipx", "ensurepath")
 
     if (Get-Command pipx -ErrorAction SilentlyContinue) {
         return "pipx"

@@ -4,7 +4,7 @@ set -euo pipefail
 MIN_PYTHON="3.10"
 
 log() {
-  printf '[worai-install] %s\n' "$*"
+  printf '[worai-install] %s\n' "$*" >&2
 }
 
 fail() {
