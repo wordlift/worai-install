@@ -116,7 +116,9 @@ ensure_pipx() {
     Darwin)
       if has_cmd brew; then
         log "Installing pipx with Homebrew..."
-        brew install pipx
+        if ! brew install pipx; then
+          log "Homebrew pipx install failed; falling back to pip user install..."
+        fi
       fi
       ;;
     Linux)
@@ -152,6 +154,12 @@ ensure_pipx() {
   fi
 
   "$py" -m pipx ensurepath || true
+  local user_base
+  user_base="$("$py" -c 'import site; print(site.USER_BASE)' 2>/dev/null || true)"
+  if [ -n "$user_base" ] && [ -x "$user_base/bin/pipx" ]; then
+    echo "$user_base/bin/pipx"
+    return
+  fi
   if [ -x "/opt/homebrew/bin/pipx" ]; then
     echo "/opt/homebrew/bin/pipx"
     return
