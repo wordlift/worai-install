@@ -198,7 +198,7 @@ main() {
   install_or_upgrade_worai "$pipx_bin"
 
   local installed_version
-  installed_version="$("$pipx_bin" runpip worai show worai 2>/dev/null | awk '/^Version:/{print $2; exit}')"
+  installed_version="$("$pipx_bin" runpip worai show worai 2>/dev/null | awk '/^Version:/{print $2; exit}' || true)"
 
   log "Done."
   log "worai ${installed_version:-unknown} successfully installed"
