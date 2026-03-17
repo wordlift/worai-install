@@ -196,15 +196,36 @@ main() {
   pipx_bin="$(ensure_pipx "$py")"
 
   install_or_upgrade_worai "$pipx_bin"
+  "$pipx_bin" ensurepath >/dev/null 2>&1 || true
 
   local installed_version
   installed_version="$("$pipx_bin" runpip worai show worai 2>/dev/null | awk '/^Version:/{print $2; exit}' || true)"
+  local user_base
+  user_base="$("$py" -c 'import site; print(site.USER_BASE)' 2>/dev/null || true)"
 
   log "Done."
   log "worai ${installed_version:-unknown} successfully installed"
-  log "If this is your first pipx install, open a new terminal before running: worai --help"
   if has_cmd worai; then
     log "Installed version: $(worai --version 2>/dev/null || echo 'unknown')"
+    return
+  fi
+
+  local worai_candidate=""
+  if [ -n "$user_base" ] && [ -x "$user_base/bin/worai" ]; then
+    worai_candidate="$user_base/bin/worai"
+  elif [ -x "$HOME/.local/bin/worai" ]; then
+    worai_candidate="$HOME/.local/bin/worai"
+  fi
+
+  if [ -n "$worai_candidate" ]; then
+    local worai_dir
+    worai_dir="$(dirname "$worai_candidate")"
+    log "worai is installed at: $worai_candidate"
+    log "Current shell PATH does not include: $worai_dir"
+    log "Run now: export PATH=\"$worai_dir:\$PATH\" && hash -r"
+    log "Then run: worai --help"
+  else
+    log "If this is your first pipx install, open a new terminal before running: worai --help"
   fi
 }
 
