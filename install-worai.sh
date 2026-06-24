@@ -69,9 +69,24 @@ python_ok() {
   "$py" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)"
 }
 
+macos_python_cmd() {
+  local candidate
+  for candidate in \
+    "/Library/Frameworks/Python.framework/Versions/Current/bin/python3" \
+    "/opt/homebrew/bin/python3" \
+    "/usr/local/bin/python3"
+  do
+    if [ -x "$candidate" ] && python_ok "$candidate"; then
+      echo "$candidate"
+      return
+    fi
+  done
+  return 1
+}
+
 install_python_macos() {
   if ! has_cmd brew; then
-    fail "Homebrew not found. Install Python 3.10+ from https://www.python.org/downloads/macos/ and re-run."
+    fail "Python >= $MIN_PYTHON not found. Install Python from https://www.python.org/downloads/macos/, open a new terminal, and re-run."
   fi
   log "Installing Python with Homebrew..."
   brew install python@3.12
@@ -116,7 +131,14 @@ ensure_python() {
   fi
 
   case "$(uname -s)" in
-    Darwin) install_python_macos ;;
+    Darwin)
+      if py="$(macos_python_cmd 2>/dev/null)"; then
+        log "Using $py ($("$py" --version 2>&1))."
+        echo "$py"
+        return
+      fi
+      install_python_macos
+      ;;
     Linux) install_python_linux ;;
     *)
       fail "Unsupported OS for this installer. Install Python 3.10+ and pipx manually."
@@ -124,6 +146,9 @@ ensure_python() {
   esac
 
   py="$(python_cmd 2>/dev/null || true)"
+  if [ -z "$py" ] && [ "$(uname -s)" = "Darwin" ]; then
+    py="$(macos_python_cmd 2>/dev/null || true)"
+  fi
   [ -n "$py" ] || fail "Python command not found after installation."
   python_ok "$py" || fail "Python >= $MIN_PYTHON is required."
   log "Using $py ($("$py" --version 2>&1))."
